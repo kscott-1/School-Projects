@@ -1,0 +1,388 @@
+---
+title: "ACT03 - Data Mining"
+author: "Team 7 | Captain: Nadine Rose | Members: Kyle Scott, Lakshya Rathore, Bailey LaRea"
+date: \today
+documentclass: report
+geometry: margin=2cm
+header-includes:
+    - \usepackage{setspace}\doublespacing
+    - \usepackage{mathtools}
+    - \usepackage{physics}
+    - \usepackage{enumitem}
+    - \usepackage{color}
+    - \usepackage{soul}
+    - \usepackage{graphicx}
+output: pdf_document
+---
+
+\newpage
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 1.1
+
+```{r, warning=FALSE, message=FALSE}
+library(kableExtra)
+
+Observation <- c(1:12)
+True_Status <- c(1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+Posterior_Probability <- c(0.95, 0.85, 0.75, 0.45, 0.35, 0.25, 0.15, 0.05, 0.65, 0.55, 0.5, 0.7)
+
+df <- data.frame(Observation, True_Status, Posterior_Probability)
+
+kable(df, linesep = "\\addlinespace", 
+      digits = 3, booktabs = T, format = 'latex') %>% 
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+We are given that the cut-off point is 0.72. Using this chart, we know that any Posterior Probability $\geq 0.72$ will be classified as 1 and any Posterior Probability $< 0.72$ will be classified as 0.
+
+```{r}
+Predicted_Status <- c(1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+df <- cbind(df, Predicted_Status)
+
+kable(df, linesep = "\\addlinespace", 
+      digits = 3, booktabs = T, format = 'latex') %>% 
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+Now we can compare True_Status to Predicted_Status to determine the number of True Positives, False Positives, True Negatives and False Negatives.
+
+### Answer Section:
+
+True Positive (True\_Status = 1 \&\& Predicted\_Status = 1) = 3 (Obs. 1, 2, and 3)
+
+False Positive (True\_Status = 0 \&\& Predicted\_Status = 1) = 0
+
+True Negative (True\_Status = 0 \&\& Predicted\_Status = 0) = 6 (Obs. 7, 8, 9, 10, 11, and 12)
+
+False Negative (True\_Status = 1 \&\& Predicted\_Status = 0) = 3 (Obs. 4, 5, and 6)
+
+Sensitivity = $\frac{N_{TP}}{N_{TP} + N_{FN}} = \frac{3}{3 + 3} = 0.5$
+
+Specificity = $\frac{N_{TN}}{N_{TN} + N_{FP}} = \frac{6}{6 + 0} = 1$
+
+Accuracy = $\frac{N_{TP} + N_{TN}}{N} = \frac{3 + 6}{12} = 0.75$
+
+Precision = $\frac{N_TP}{N_{TP} + N_{FP}} = \frac{3}{3 + 0} = 1$
+
+F1 Score = $\frac{2\times(\text{Precision}\times\text{Sensitivity})}{\text{Precision} + \text{Sensitivity}} = \frac{2\times1\times0.5}{0.5 + 1} = 0.667$
+
+# Problem 1.2
+
+```{r, warning=FALSE, message=FALSE}
+Rank <- c(12, 11, 10, 5, 4, 3, 2, 1, 8, 7, 6, 9)
+Rank_Positive <- c(12, 11, 10, 5, 4, 3, 0, 0, 0, 0, 0, 0)
+df <- cbind(df, Rank)
+df <- cbind(df, Rank_Positive)
+kable(df, linesep = "\\addlinespace", 
+      digits = 3, booktabs = T, format = 'latex') %>% 
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+```{r, warning=FALSE, message=FALSE}
+sum_rankpos <- sum(Rank_Positive)
+sum_rankpos
+```
+
+AUC = $\frac{\text{sumrankpos - 0.5} \times \pi N \times (\pi N + 1)}{\pi N (N - \pi N)} = \frac{45 - 0.5 \times 0.5 \times 12 \times (0.5 \times 12 + 1)}{0.5 \times 12 \times(12 - 0.5 \times 12)} = 0.667$
+
+# Problem 1.3
+
+GINI = $2 \times (\text{AUC} - 0.5) = 2 \times (0.667 - 0.5) = 0.3334$
+
+# Problem 2
+
+### Calculate KS Statistics
+
+```{r, warning=FALSE, message=FALSE}
+# create columns for Decile, Positive, and Negative as given in the Assignment
+Decile <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+Positive <- c(100, 98, 96, 90, 85, 80, 75, 66, 51, 41)
+Negative <- c(0, 2, 4, 10, 15, 20, 25, 34, 49, 59)
+
+# create a data frame with these 3 columns
+ks <- data.frame(Decile, Positive, Negative)
+```
+
+```{r, warning=FALSE, message=FALSE}
+# create vars for Total Num of Positives and Negatives
+total_pos <- sum(Positive)
+total_neg <- sum(Negative)
+
+# calculate TPR
+TPR <- Positive / total_pos
+
+# calculate TNR
+TNR <- Negative / total_neg
+
+# calculate cumulative TPR
+cumulative_TPR <- cumsum(TPR)
+
+# calculate cumulative TNR
+cumulative_TNR <- cumsum(TNR)
+
+# calculate KS statistic
+KS <- cumulative_TPR - cumulative_TNR
+```
+
+```{r, warning=FALSE, message=FALSE}
+# bind TPR to the data frame
+ks <- cbind(ks, TPR)
+
+# bind TNR to the data frame
+ks <- cbind(ks, TNR)
+
+# bind cumulative_TPR to the data frame
+ks <- cbind(ks, cumulative_TPR)
+
+# bind cumulative_TNR to the data frame
+ks <- cbind(ks, cumulative_TNR)
+
+# bind KS to the data frame
+ks <- cbind(ks, KS)
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(kableExtra)
+
+kable(ks, caption = "Calculating KS Statistics", linesep = "\\addlinespace", 
+      digits = 3, booktabs = T, format = 'latex') %>% 
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+
+# Problem 3.1
+
+### Read in the CSV file for Microsoft
+
+```{r, warning=FALSE, message=FALSE}
+library(readr)
+
+microsoft <- read.csv("Microsoft_Results.csv")
+```
+
+# Problem 3.2
+
+### First Step is to create a function that will calculate all the required values which can be passed to the function parameter called 'cutoff'
+
+```{r}
+stats <- function(cutoff){
+
+predicted_detections <- ifelse(microsoft$P_HasDetections >= cutoff, 1, ifelse(microsoft$P_HasDetections < cutoff, 0, NA))
+
+TP <- sum(ifelse((microsoft$HasDetections == 1 & predicted_detections == 1), 1, 0))
+
+TruePos <<- c(TruePos, TP)
+
+FP <- sum(ifelse((microsoft$HasDetections == 0 & predicted_detections == 1), 1, 0))
+
+FalsePos <<- c(FalsePos, FP)
+
+TN <- sum(ifelse((microsoft$HasDetections == 0 & predicted_detections == 0), 1, 0))
+
+TrueNeg <<- c(TrueNeg, TN)
+
+FN <- sum(ifelse((microsoft$HasDetections == 1 & predicted_detections == 0), 1, 0))
+
+FalseNeg <<- c(FalseNeg, FN)
+
+Sensitivity <<- c(Sensitivity, TP / (TP + FN))
+
+Specificity <<- c(Specificity, TN / (TN + FP))
+
+Accuracy <<- c(Accuracy, (TP + TN) / (TP + TN + FP + FN))
+
+Precision <<- c(Precision, TP / (TP + FP))
+}
+```
+
+### Now that the function is created, we can call the function for whichever desired values we have. For the purpose of simplicity and demonstration, here we have chosen to display a table with all the desired statistics at the five percent level
+
+```{r, results='hide'}
+TP <- vector()
+FP <- vector()
+TN <- vector()
+FN <- vector()
+TruePos <- vector()
+FalsePos <- vector()
+TrueNeg <- vector()
+FalseNeg <- vector()
+Sensitivity <- vector()
+Specificity <- vector()
+Accuracy <- vector()
+Precision <- vector()
+
+cutoff <- seq(0.05, 1, by = 0.05)
+mapply(stats, cutoff)
+```
+
+```{r}
+stats_df <- data.frame(cutoff, TruePos, FalsePos, TrueNeg, FalseNeg, Sensitivity, Specificity, Accuracy, Precision)
+
+kable(stats_df, caption = "Statistics for the five percentile level", linesep = "\\addlinespace", 
+      digits = 3, booktabs = T, format = 'latex') %>% 
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+# Problem 3.3
+
+```{r, warning=FALSE, message=FALSE}
+library(pROC)
+
+AUC <- auc(microsoft$HasDetections, microsoft$P_HasDetections)
+AUC
+```
+
+```{r, warning=FALSE, message=FALSE}
+GINI <- 2*(AUC -  0.5)
+GINI
+```
+
+# Problem 3.4
+
+### Call our function from 3.2 but this time only for deciles
+
+```{r, results = 'hide'}
+TP <- vector()
+FP <- vector()
+TN <- vector()
+FN <- vector()
+TruePos <- vector()
+FalsePos <- vector()
+TrueNeg <- vector()
+FalseNeg <- vector()
+Sensitivity <- vector()
+Specificity <- vector()
+Accuracy <- vector()
+Precision <- vector()
+
+cutoff <- seq(0.1, 1, by = 0.1)
+mapply(stats, cutoff)
+```
+
+### Create the ROC plot by graphing 1 - Specificity vs Sensitivity with some of the data provided by our function
+
+```{r, warning=FALSE}
+library(ggplot2)
+Specificity <- 1 - Specificity
+df <- data.frame(Specificity, Sensitivity)
+plt <- ggplot(data = df, aes(x = Specificity, y = Sensitivity)) +
+  geom_point(color = '#0072B2') + 
+  geom_line(alpha = 0.3, color = '#0072B2') +
+  geom_abline(slope = 1, inctercept = 0, color = '#0072B2') +
+  ggtitle(label = "ROC Curve for Deciles (Ten Percent Level)") +
+  xlab("1 - Specificity") +
+  ylab("Sensitivity") +
+  theme_light()
+
+plt
+```
+
+# Problem 3.5
+
+### Same process as 3.4 except this time we are working at the fifth percentile level
+
+```{r, results = 'hide'}
+TP <- vector()
+FP <- vector()
+TN <- vector()
+FN <- vector()
+TruePos <- vector()
+FalsePos <- vector()
+TrueNeg <- vector()
+FalseNeg <- vector()
+Sensitivity <- vector()
+Specificity <- vector()
+Accuracy <- vector()
+Precision <- vector()
+
+cutoff <- seq(0.05, 1, by = 0.05)
+mapply(stats, cutoff)
+```
+
+```{r, warning=FALSE}
+library(ggplot2)
+Specificity <- 1 - Specificity
+df <- data.frame(Specificity, Sensitivity)
+plt <- ggplot(data = df, aes(x = Specificity, y = Sensitivity)) +
+  geom_point(color = '#0072B2') + 
+  geom_line(alpha = 0.3, color = '#0072B2') +
+  geom_abline(slope = 1, inctercept = 0, color = '#0072B2') +
+  ggtitle(label = "ROC Curve for the Five Percent Level") +
+  xlab("1 - Specificity") +
+  ylab("Sensitivity") +
+  theme_light()
+
+plt
+```
+
+# Problem 3.6
+
+```{r}
+true_pos <- function(decile){
+  
+vec <- microsoft$HasDetections[microsoft$P_HasDetections > decile - 0.1 & microsoft$P_HasDetections <= decile]
+
+n <- length(vec)
+  
+count <- sum(vec == 1)
+  
+TPC <<- c(TPC, count)
+
+N <<- c(N, n)
+}
+```
+
+```{r, results='hide'}
+total_pos <- sum(microsoft$HasDetections == 1)
+prop_pos <- total_pos / 1000000
+
+vec <- vector()
+n <- vector()
+count <- vector()
+TPC <- vector()
+N <- vector()
+
+decile <- seq(1, 0.1, -0.1)
+
+mapply(true_pos, decile)
+```
+
+```{r, warning=FALSE}
+library(ggplot2)
+lift <- (TPC / N) / prop_pos
+new_seq <- seq(0.1, 1, 0.1)
+lift_cum <- (cumsum(TPC) / cumsum(N)) / prop_pos
+df <- data.frame(lift, lift_cum, new_seq)
+plt <- ggplot(data = df, aes(x = new_seq)) +
+  geom_point(aes(y = lift), color = '#0072B2') + 
+  geom_line(aes(y = lift, color = "Lift"), alpha = 0.3) +
+  geom_point(aes(y = lift_cum), color = '#CC79A7') + 
+  geom_line(aes(y = lift_cum, color = "Cumulative Lift"), alpha = 0.3) +
+  geom_hline(yintercept = 1, alpha = 0.5) +
+  scale_color_manual("", breaks = c("Lift", "Cumulative Lift"), values = c('#0072B2', '#CC79A7')) +
+  ggtitle(label = "Lift Chart") +
+  xlab("Fraction") +
+  ylab("Lift") +
+  scale_x_continuous(n.breaks = 10) +
+  theme_light()
+
+plt
+```
+
+# Chapter IV Exercises
+
+### Problem 1
+\begin{figure}
+\fbox{\includegraphics[width=11cm, height=22cm]{q1.png}}
+\end{figure}
+
+### Problem 9
+
+\begin{enumerate}[label = (\alph*)]
+\item \begin{enumerate}[label = (\roman*)] \item $\frac{p(X)}{1 - p(X)} = 0.37$ \item $p(X) = 0.37(1 - p(X))$ \item $1.37 \times p(X) = 0.37$ \item $p(X) = 0.37/1.37 =$ \hl{27\%} \end{enumerate}
+\item Odds = $\frac{p(X)}{1 - p(X)} = 0.16/0.84 =$ \hl{0.19}
+\end{enumerate}

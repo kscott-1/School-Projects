@@ -1,0 +1,526 @@
+---
+title: "ACT05 - Data Mining"
+author: "Team 7 | Captain: Nadine Rose | Members: Kyle Scott, Lakshya Rathore, Bailey LaRea"
+date: \today
+documentclass: report
+geometry: margin=2cm
+header-includes:
+    - \usepackage{setspace}\doublespacing
+    - \usepackage{mathtools}
+    - \usepackage{physics}
+    - \usepackage{enumitem}
+    - \usepackage{color}
+    - \usepackage{soul}
+    - \usepackage{graphicx}
+    - \usepackage{float}
+output: pdf_document
+---
+
+\newpage
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+\section{Problem 1 - Programming}
+
+\subsection{One - Read Data}
+
+```{r, warning=FALSE, message=FALSE}
+# read in the csv
+library(readr)
+hd <- read_csv("HeartDisease.csv")
+```
+
+\subsection{Two - Univariate Statistics}
+
+```{r, warning=FALSE, message=FALSE, fig.pos='H'}
+library(psych)
+library(kableExtra)
+library(dplyr)
+
+# select only the needed columns and gather statistics
+df <- select(hd, -c(names, famhist, chd))
+tbl <- describe(df, skew = TRUE)
+# calculate vairance
+variance <- (tbl$sd)^2
+variance <- round(variance, digits = 3)
+# calculate first quartile
+first_quartile <- summarize_all(df, ~ quantile(.x, 0.25))
+first_quartile <- as.numeric(first_quartile[1,])
+# calculate third quartile
+third_quartile <- summarize_all(df, ~quantile(.x, 0.75))
+third_quartile <- as.numeric(third_quartile[1,])
+# bind extra statistics to existing tbl
+tbl <- cbind(tbl, variance, first_quartile, third_quartile)
+# reorder tbl
+tbl <- tbl[, -c(1, 6, 7)]
+tbl <- tbl[, c(2, 4, 8, 9, 3, 11, 10, 12, 13)]
+# print tbl
+kable(tbl, caption = "Univariate Statistics for Heart Disease Data", linesep = "\\addlinespace", digits = 3, 
+      booktabs = T, format = 'pandoc')
+```
+
+\subsection{Three - Histograms}
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", out.width="50%"}
+library(ggplot2)
+library(ggthemes)
+
+plt_sbp <- ggplot(data = hd, aes(x = sbp)) + 
+  geom_histogram(aes(y = ..density..), col = "black", fill = "#E69F00", bins = 15) +
+  stat_function(fun = dnorm, args = list(mean = mean(hd$sbp),
+                                         sd = sd(hd$sbp)), 
+                col = "#009E73", size = 2) +
+  ggtitle(label = "Systolic Blood Pressure") +
+  xlab("Systolic Blood Pressure (sbp)") +
+  ylab("Density") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+  
+plt_sbp
+
+plt_tobacco <- ggplot(data = hd, aes(x = tobacco)) + 
+  geom_histogram(aes(y = ..density..), col = "black", fill = "#E69F00", bins = 15) +
+  stat_function(fun = dnorm, args = list(mean = mean(hd$tobacco),
+                                         sd = sd(hd$tobacco)), 
+                col = "#009E73", size = 2) +
+  ggtitle(label = "Tobacco") +
+  xlab("Tobacco") +
+  ylab("Density") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+  
+plt_tobacco
+
+plt_ldl <- ggplot(data = hd, aes(x = ldl)) + 
+  geom_histogram(aes(y = ..density..), col = "black", fill = "#E69F00", bins = 15) +
+  stat_function(fun = dnorm, args = list(mean = mean(hd$ldl),
+                                         sd = sd(hd$ldl)), 
+                col = "#009E73", size = 2) +
+  ggtitle(label = "Low Density Lipoprotein") +
+  xlab("Low Density Lipoprotein (ldl)") +
+  ylab("Density") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+  
+plt_ldl
+
+plt_adiposity <- ggplot(data = hd, aes(x = adiposity)) + 
+  geom_histogram(aes(y = ..density..), col = "black", fill = "#E69F00", bins = 15) +
+  stat_function(fun = dnorm, args = list(mean = mean(hd$adiposity),
+                                         sd = sd(hd$adiposity)), 
+                col = "#009E73", size = 2) +
+  ggtitle(label = "Adiposity") +
+  xlab("Adiposity") +
+  ylab("Density") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+  
+plt_adiposity
+
+plt_typea <- ggplot(data = hd, aes(x = typea)) + 
+  geom_histogram(aes(y = ..density..), col = "black", fill = "#E69F00", bins = 15) +
+  stat_function(fun = dnorm, args = list(mean = mean(hd$typea),
+                                         sd = sd(hd$typea)), 
+                col = "#009E73", size = 2) +
+  ggtitle(label = "Type A Behavior") +
+  xlab("Typea") +
+  ylab("Density") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+  
+plt_typea
+
+plt_obesity <- ggplot(data = hd, aes(x = obesity)) + 
+  geom_histogram(aes(y = ..density..), col = "black", fill = "#E69F00", bins = 15) +
+  stat_function(fun = dnorm, args = list(mean = mean(hd$obesity),
+                                         sd = sd(hd$obesity)), 
+                col = "#009E73", size = 2) +
+  ggtitle(label = "Obesity") +
+  xlab("Obesity") +
+  ylab("Density") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+  
+plt_obesity
+
+plt_alcohol <- ggplot(data = hd, aes(x = alcohol)) + 
+  geom_histogram(aes(y = ..density..), col = "black", fill = "#E69F00", bins = 15) +
+  stat_function(fun = dnorm, args = list(mean = mean(hd$alcohol),
+                                         sd = sd(hd$alcohol)), 
+                col = "#009E73", size = 2) +
+  ggtitle(label = "Current Alcohol Consumption") +
+  xlab("Alcohol") +
+  ylab("Density") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+  
+plt_alcohol
+
+plt_age <- ggplot(data = hd, aes(x = age)) + 
+  geom_histogram(aes(y = ..density..), col = "black", fill = "#E69F00", bins = 15) +
+  stat_function(fun = dnorm, args = list(mean = mean(hd$age),
+                                         sd = sd(hd$age)), 
+                col = "#009E73", size = 2) +
+  ggtitle(label = "Age at Onset") +
+  xlab("Age") +
+  ylab("Density") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+  
+plt_age
+```
+
+\subsection{Four - Quantile Plots}
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", out.width="50%"}
+qplt_sdp <- ggplot(data = hd, aes(sample = sbp)) +
+  stat_qq(col = "#D55E00") +
+  ggtitle("Quantile Plot - sdp") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+
+qplt_sdp
+
+qplt_tobacco <- ggplot(data = hd, aes(sample = tobacco)) +
+  stat_qq(col = "#D55E00") +
+  ggtitle("Quantile Plot - Tobacco") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+
+qplt_tobacco
+
+qplt_ldl <- ggplot(data = hd, aes(sample = ldl)) +
+  stat_qq(col = "#D55E00") +
+  ggtitle("Quantile Plot - ldl") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+
+qplt_ldl
+
+qplt_adiposity <- ggplot(data = hd, aes(sample = adiposity)) +
+  stat_qq(col = "#D55E00") +
+  ggtitle("Quantile Plot - adiposity") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+
+qplt_adiposity
+
+qplt_typea <- ggplot(data = hd, aes(sample = typea)) +
+  stat_qq(col = "#D55E00") +
+  ggtitle("Quantile Plot - typea") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+
+qplt_typea
+
+qplt_obesity <- ggplot(data = hd, aes(sample = obesity)) +
+  stat_qq(col = "#D55E00") +
+  ggtitle("Quantile Plot - obesity") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+
+qplt_obesity
+
+qplt_alcohol <- ggplot(data = hd, aes(sample = alcohol)) +
+  stat_qq(col = "#D55E00") +
+  ggtitle("Quantile Plot - alcohol") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+
+qplt_alcohol
+
+qplt_age <- ggplot(data = hd, aes(sample = age)) +
+  stat_qq(col = "#D55E00") +
+  ggtitle("Quantile Plot - age") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+
+qplt_age
+```
+
+\subsection{Five - Logistic Regression Model}
+
+```{r}
+logit_model <- glm(formula = chd ~ . - names - famhist, family = binomial(link = "logit"), data = hd)
+
+summary(logit_model)
+```
+
+\subsection{Six - Power Transformations}
+
+```{r, warning=FALSE, message=FALSE}
+library(forecast)
+pwr_sbp <- (hd$sbp) ^ (-2)
+pwr_tobacco <- (hd$tobacco) ^ (0.4)
+pwr_ldl <- (hd$ldl) ^ (0.1)
+pwr_obesity <- (hd$obesity) ^ (-0.4)
+pwr_alcohol <- (hd$alcohol) ^ (0.4)
+```
+
+```{r}
+hd <- cbind(hd, pwr_sbp, pwr_tobacco, pwr_ldl, pwr_obesity, pwr_alcohol)
+```
+
+\subsection{Seven - Power Transformation Histograms}
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", out.width="50%"}
+library(ggplot2)
+library(ggthemes)
+
+plt_pwrsbp <- ggplot(data = hd, aes(x = pwr_sbp)) + 
+  geom_histogram(aes(y = ..density..), col = "black", fill = "#E69F00", bins = 15) +
+  stat_function(fun = dnorm, args = list(mean = mean(hd$pwr_sbp),
+                                         sd = sd(hd$pwr_sbp)), 
+                col = "#009E73", size = 2) +
+  ggtitle(label = "Systolic Blood Pressure - Power Transformation (power = -2)") +
+  xlab("Systolic Blood Pressure (sbp)") +
+  ylab("Density") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+  
+plt_pwrsbp
+
+plt_pwrtobacco <- ggplot(data = hd, aes(x = pwr_tobacco)) + 
+  geom_histogram(aes(y = ..density..), col = "black", fill = "#E69F00", bins = 15) +
+  stat_function(fun = dnorm, args = list(mean = mean(hd$pwr_tobacco),
+                                         sd = sd(hd$pwr_tobacco)), 
+                col = "#009E73", size = 2) +
+  ggtitle(label = "Tobacco - Power Transformation (power = 0.4)") +
+  xlab("Tobacco") +
+  ylab("Density") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+  
+plt_pwrtobacco
+
+plt_pwrldl <- ggplot(data = hd, aes(x = pwr_ldl)) + 
+  geom_histogram(aes(y = ..density..), col = "black", fill = "#E69F00", bins = 15) +
+  stat_function(fun = dnorm, args = list(mean = mean(hd$pwr_ldl),
+                                         sd = sd(hd$pwr_ldl)), 
+                col = "#009E73", size = 2) +
+  ggtitle(label = "Low Density Lipoprotein (ldl) - Power Transformation (power = 0.1)") +
+  xlab("Low Density Lipoprotein (ldl)") +
+  ylab("Density") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+  
+plt_pwrldl
+
+plt_pwrobesity <- ggplot(data = hd, aes(x = pwr_obesity)) + 
+  geom_histogram(aes(y = ..density..), col = "black", fill = "#E69F00", bins = 15) +
+  stat_function(fun = dnorm, args = list(mean = mean(hd$pwr_obesity),
+                                         sd = sd(hd$pwr_obesity)), 
+                col = "#009E73", size = 2) +
+  ggtitle(label = "Obesity - Power Transformation (power = -0.4)") +
+  xlab("Obesity") +
+  ylab("Density") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+  
+plt_pwrobesity
+
+plt_pwralcohol <- ggplot(data = hd, aes(x = pwr_alcohol)) + 
+  geom_histogram(aes(y = ..density..), col = "black", fill = "#E69F00", bins = 15) +
+  stat_function(fun = dnorm, args = list(mean = mean(hd$pwr_alcohol),
+                                         sd = sd(hd$pwr_alcohol)), 
+                col = "#009E73", size = 2) +
+  ggtitle(label = "Alcohol - Power Transformation (power = 0.4)") +
+  xlab("Alcohol") +
+  ylab("Density") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+  
+plt_pwralcohol
+```
+
+\subsection{Eight - Power Transformation Quantile Plots}
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", out.width="50%"}
+qplt_pwrsdp <- ggplot(data = hd, aes(sample = pwr_sbp)) +
+  stat_qq(col = "#D55E00") +
+  ggtitle("Quantile Plot - sdp (power = -2)") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+
+qplt_pwrsdp
+
+qplt_pwrtobacco <- ggplot(data = hd, aes(sample = pwr_tobacco)) +
+  stat_qq(col = "#D55E00") +
+  ggtitle("Quantile Plot - Tobacco (power = 0.4)") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+
+qplt_pwrtobacco
+
+qplt_pwrldl <- ggplot(data = hd, aes(sample = pwr_ldl)) +
+  stat_qq(col = "#D55E00") +
+  ggtitle("Quantile Plot - ldl (power = 0.1)") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+
+qplt_pwrldl
+
+qplt_pwrobesity <- ggplot(data = hd, aes(sample = pwr_obesity)) +
+  stat_qq(col = "#D55E00") +
+  ggtitle("Quantile Plot - obesity (power = -0.4)") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+
+qplt_pwrobesity
+
+qplt_pwralcohol <- ggplot(data = hd, aes(sample = pwr_alcohol)) +
+  stat_qq(col = "#D55E00") +
+  ggtitle("Quantile Plot - alcohol (power = 0.4)") +
+  theme_minimal() +
+  theme(plot.background = element_rect(colour = "black", fill=NA, size=1))
+
+qplt_pwralcohol
+```
+
+\subsection{Nine - Logistic Regression with Transformed Variables}
+
+```{r}
+logit_model_transformed <- glm(formula = chd ~ adiposity + typea + age +
+                                 pwr_sbp + pwr_tobacco + pwr_ldl +
+                                 pwr_obesity + pwr_alcohol, 
+                               family = binomial(link = "logit"), data = hd)
+
+summary(logit_model_transformed)
+```
+
+\newpage
+
+\section{Problem 2 - Reporting}
+
+\subsection{One - Univariate Table}
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.pos='H'}
+library(psych)
+library(kableExtra)
+library(dplyr)
+
+# select only the needed columns and gather statistics
+df <- select(hd, -c(names, famhist, chd, pwr_alcohol, pwr_ldl, pwr_obesity, pwr_sbp, pwr_tobacco))
+tbl <- describe(df, skew = TRUE)
+# gather only mean, median and skewness
+tbl <- tbl[, c(3, 5, 11)]
+# print tbl
+kable(tbl, caption = "Univariate Statistics for Heart Disease Data", 
+      linesep = "\\addlinespace", digits = 3, 
+      booktabs = T, format = 'pandoc')
+```
+
+\subsection{Two - Histogram and Quantile Plot of Tobacco}
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.show="hold", out.width="50%"}
+plt_tobacco
+qplt_tobacco
+```
+
+\subsection{Three - Histogram and Quantile Plot of Alcohol}
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.show="hold", out.width="50%"}
+plt_alcohol
+qplt_alcohol
+```
+
+\subsection{Four - Univariate Table for Power Transformation}
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.pos='H'}
+library(psych)
+library(kableExtra)
+library(dplyr)
+
+# select only the needed columns and gather statistics
+df <- select(hd, c(pwr_alcohol, pwr_ldl, pwr_obesity, pwr_sbp, pwr_tobacco))
+tbl <- describe(df, skew = TRUE)
+# gather only mean, median and skewness
+tbl <- tbl[, c(3, 5, 11)]
+# print tbl
+kable(tbl, caption = "Univariate Statistics for Heart Disease Data", 
+      linesep = "\\addlinespace", digits = 3, 
+      booktabs = T, format = 'pandoc')
+```
+
+\subsection{Five - Histogram and Quantile Plot of Tobacco (Power Transformation)}
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.show="hold", out.width="50%"}
+plt_pwrtobacco
+qplt_pwrtobacco
+```
+
+\subsection{Six - Histogram and Quantile Plot of Alcohol (Power Transformation)}
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.show="hold", out.width="50%"}
+plt_pwralcohol
+qplt_pwralcohol
+```
+
+\subsection{Seven - Confidence Interval (Tobacco/Alcohol)}
+
+
+
+\subsection{Eight - Confidence Interval (Alcohol)}
+
+
+
+\subsection{Nine - Model Performance (c-statistics)}
+
+
+
+\section{Textbook Questions}
+
+\subsection{Question 2}
+\begin{figure}[H]
+\fbox{\includegraphics[width=11cm, height=22cm]{q2.png}}
+\end{figure}
+
+\subsection{Question 6}
+
+\begin{enumerate}[label = (\alph*)]
+
+\item Givens: $\hat{\beta_0} = -6$, $\hat{\beta_1} = 0.05$, $X_1 = 40$ hrs, $X_2 = 3.5$
+\begin{gather*}
+\hat{p}(X) = \frac{e^{-6 + 0.05X_1 + X_2}}{1 + e^{-6 + 0.05X_1 + X_2}} \\
+= \frac{e^{-6 + 0.05(40) + X_2}}{1 + e^{-6 + 0.05(40) + X_2}} \\
+= \frac{e^{-0.5}}{1 + e^{-0.5}} \\
+= 0.37754
+\end{gather*}
+
+\item The student in part (a) needs to study 50 hours in order to have a 50\% chance of getting an A in the class. Givens: $\hat{p}(X) = 0.5$, $X_2 = 3.5$
+
+\begin{gather*}
+\hat{p}(X) = \frac{e^{-6 + 0.05X_1 + X_2}}{1 + e^{-6 + 0.05X_1 + X_2}} \\
+0.5 = \frac{e^{-6 + 0.05X_1 + 3.5}}{1 + e^{-6 + 0.05X_1 + 3.5}} \\
+0.5(1 + e^{-6 + 0.05X_1 + 3.5}) = e^{-6 + 0.05X_1 + 3.5} \\
+0.5 + 0.5e^{-2.5 + 0.05X_1} = e^{-2.5 + 0.05X_1} \\
+0.5 = 0.5e^{-2.5 + 0.05X_1} \\
+1 = e^{-2.5 + 0.05X_1} \\
+log(1) = log(e^{-2.5 + 0.05X_1}) \\
+0 = -2.5 + 0.05X_1 \\
+2.5 = 0.05X_1 \\
+X_1 = 50
+\end{gather*}
+
+
+\end{enumerate}
+
+\subsection{Question 7}
+
+\begin{figure}[H]
+\fbox{\includegraphics[width=11cm, height=22cm]{q7.png}}
+\end{figure}
+
+\subsection{Question 8}
+
+Since we are unsure what the true test data error rate is for the K Nearest neighbor we should not use this method. It could be that the error rate for the test data was 30% while the training data is 6%, but without knowing for sure it would be unwise to use this method. Additionally, if you multiply the average error rate by 2, then you get 36% which is greater than the 30% for logistic regression. With this being said it would be best to use logistic regression.
+
+\subsection{Question 10}
+
+
+
+\subsection{Question 12}
+
+
