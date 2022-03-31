@@ -1,0 +1,857 @@
+---
+title: "STA 6714 Final Project Report"
+author: "Kyle Scott"
+date: "11/12/2021"
+documentclass: report
+geometry: margin=2cm
+header-includes:
+    - \usepackage{setspace}\doublespacing
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Question 1: Gamestop (GME) Stock Prices
+
+## a. Read in the relevant csv files from kaggle and display the data
+
+```{r warning=FALSE, message=FALSE}
+library(readr)
+gme <- read_csv("GME_stock.csv")
+
+head(gme)
+```
+
+## Plot the 'close_price
+
+```{r}
+## We will need to read in the ggplot library to create our plot
+library(ggplot2)
+library(ggthemes)
+
+## Create our initial ggplot, scaling the x axis as a date
+gme_close <- ggplot(gme, aes(date, close_price)) + 
+  geom_line(color = 'blue') +
+  scale_x_date("Year") +
+  ylab("Closing Price") +
+  ggtitle("GME Daily Closing Price") +
+  theme_gdocs()
+
+## Plot!
+gme_close
+```
+
+## b. Plot the difference between the 'open_price' and 'close_price' at each time point
+
+```{r}
+## create a variable for the daily price gain
+price_range <- gme$close_price - gme$open_price
+
+## add the new variable to our dataframe
+gme$price_range <- price_range
+
+## Create our initial ggplot, scaling the x axis as a date
+range_plot <- ggplot(gme, aes(date, price_range)) + 
+  geom_line(color = 'blue') +
+  scale_x_date("Year") +
+  ylab("Daily Price Gain/Loss") +
+  ggtitle("GME Daily Price Gain/Loss") +
+  theme_gdocs() 
+
+## Plot!
+range_plot
+```
+
+## b. (cont.) Plot the difference between 'close_price' and 'close_price' where the prices are one month apart.
+
+```{r}
+## for the purpose of simplicity, we will treat "one month" as a standard 30 days
+close_1 <- gme$close_price[1:4743]
+close_2 <- gme$close_price[31:4773]
+
+## find the difference between close_1 and close_2
+  ## this will give us the monthly difference in closing price
+a <- rep(NA, 30)
+monthly_close_diff <- close_1 - close_2
+monthly_close_diff <- append(monthly_close_diff, a)
+
+## add to our dataframe
+gme$monthly_close_diff <- monthly_close_diff
+
+## Create our initial ggplot, scaling the x axis as a date
+monthly_close_plot <- ggplot(gme, aes(date, monthly_close_diff)) + 
+  geom_line(color = 'blue') +
+  scale_x_date("Year") +
+  ylab("Monthly Difference in Close Price") +
+  ggtitle("GME Monthly Diffence in Close Price") +
+  theme_gdocs() 
+
+## Plot!
+monthly_close_plot
+```
+
+## c. Plot the autocorrelation between the 'close_price' values and comment on the results
+
+```{r}
+## create a time series for gme
+gme_ts <- ts(gme$close_price, frequency = 365, start(2002, 44))
+gme_ts_comp <- decompose(gme_ts)
+## default acf plot
+acf(gme_ts_comp$seasonal)
+## increase lag max to show trends
+acf(gme_ts_comp$seasonal, lag.max = 4800)
+```
+
+We cannot find a uniform seasonal pattern here using the ACF plot of GME. Because we are dealing with a stock, this isn't very surprising. For the most part, stocks move randomly with the current date/season having no impact on its movement. Stocks do release quarterly earnings which will impact the stock quite a lot, but there is no telling how much it will impact the stock in either direction.
+
+## c. (cont.) Plot the autocorrelation for 2021 and 2020 separately and comment on the difference
+
+```{r}
+gme_2020 <- gme$close_price[19:271]
+## create a time series for gme
+gme_ts_2020 <- ts(gme_2020, frequency = 365, start(2020, 1))
+## default acf plot
+acf(gme_ts_2020)
+```
+
+```{r}
+gme_2021 <- gme$close_price[1:18]
+## create a time series for gme
+gme_ts_2021 <- ts(gme_2021, frequency = 365, start(2021, 1))
+## default acf plot
+acf(gme_ts_2021)
+```
+
+Based on our ACF plots here, we can see that in 2020, the close_price values were generally highly correlated with one another. Based on previous close prices, the next close price can be reasonably predicted. However, looking at the ACF plot for the beginning of 2021 (only have January data, so somewhat limited here in this study), we can see the ACF plot is all over the place and the values quickly drop to surround 0. This tells us that the closing prices in 2021 have much less bearing on the future closing prices than it did in 2021. This makes some sense when looking at our previous charts. In 2021, GME became an "internet meme stock" and tons of people began to buy into it causing wild spikes and drops. This clearly increases variability, meaning the previous closing prices wouldn't tell much about the future closes.
+
+## d. Create a column for open_price quartiles and find a conditional probability
+
+```{r, message=FALSE}
+library(dplyr)
+## condense the dataframe into only 2020/2021
+gme_cond <- gme %>% slice(1:271)
+
+## add a column called quartile with the quartile values of each closing price
+gme_cond <- within(gme_cond, quartile <- as.integer(cut(open_price, quantile(open_price, probs=0:4/4), include.lowest=TRUE)))
+
+## show the head/tail of the new dataframe to show the quartile column
+head(gme_cond$quartile)
+tail(gme_cond$quartile)
+```
+
+```{r}
+## create 3 vectors for t, t-1, and t-2 respectively
+time1 <- gme_cond$quartile[1:269]
+time2 <- gme_cond$quartile[2:270]
+time3 <- gme_cond$quartile[3:271]
+
+## numerator of the conditional prob
+num <- sum(time1 == 1 & time2 == 4 & time3 == 4)
+num
+
+## denominator of the conditional prob
+den <- sum(time2 == time3 & time2 == 4)
+den
+
+## print conditional prob
+num/den
+```
+
+Because there is never an occurance where t-1 and t-2 were in the 4th quartile and t was in the 1st quantile, the conditional probability comes out to be zero. This isn't shocking because stocks rise and fall in a line, there are trends. For the stock to be in the 4th quantile for the two previous days and then fall to the 1st quantile, there would need to be a massive drop in the price of the stock. We can see here that this was never the case for GME and therefore we found the probability to be zero.
+
+# Question 2: Placement Data
+
+### 0. Read in the data and show the head of the data
+
+```{r}
+placement <- read_csv("Placement_Data_Full_Class.csv")
+
+head(placement)
+```
+
+### a. Separate the data set into testing and training
+
+```{r}
+## create training set with first 190 data points
+placement_train <- placement %>% slice(1:190)
+
+## create testing set with final 25 data points
+placement_test <- placement %>% slice(191:215)
+```
+
+### a. (cont.) Produce scatter plots on the training set
+
+```{r}
+## create ggplot figure
+scatter1 <- ggplot(placement_train, aes(ssc_p, degree_p)) + 
+  geom_point(aes(color = gender)) +
+  ggtitle("Placement Scatterplot 1") +
+  theme_gdocs()
+
+# Plot!
+scatter1
+```
+
+```{r}
+## create ggplot figure
+scatter2 <- ggplot(placement_train, aes(degree_p, hsc_p)) + 
+  geom_point(aes(color = gender)) +
+  ggtitle("Placement Scatterplot 2") +
+  theme_gdocs()
+
+# Plot!
+scatter2
+```
+
+### b. Produce a clustering on the two scatterplots
+```{r}
+p_train_1 <- data.frame(placement_train$ssc_p, placement_train$degree_p)
+cluster <- kmeans(p_train_1, 2)
+p_train_1 <- cbind(p_train_1, cluster$cluster)
+names(p_train_1)[3] <- "clusterNum"
+
+clusternum1 = p_train_1[ which(p_train_1$clusterNum==1),1:2 ]
+
+clusternum2 = p_train_1[ which(p_train_1$clusterNum==2),1:2 ]
+```
+
+```{r}
+cluster
+```
+
+```{r}
+plot(clusternum1,col="green", xlim=c(40,90), ylim=c(40,90))
+points(clusternum2,col="red")
+```
+
+```{r}
+p_train_2 <- data.frame(placement_train$degree_p, placement_train$hsc_p)
+cluster <- kmeans(p_train_2, 2)
+p_train_2 <- cbind(p_train_2, cluster$cluster)
+names(p_train_2)[3] <- "clusterNum"
+
+clusternum1 = p_train_2[ which(p_train_2$clusterNum==1),1:2 ]
+
+clusternum2 = p_train_2[ which(p_train_2$clusterNum==2),1:2 ]
+```
+
+```{r}
+cluster
+```
+
+```{r}
+plot(clusternum1,col="green", xlim=c(45,90), ylim=c(35,100))
+points(clusternum2,col="red")
+```
+
+Considering that both scatterplots show no sign of separation by gender simply by looking at the plot, it is hard to imagine that simple clustering like this would be able to create much of a useful divide. With that said, I would pick the first scatterplot as the one that produced the better clustering. With both accuracies below 60%, neither did a good job but the first scatterplot did display a higher accuracy by about 10%.
+
+### c. Using T_SNE, perform a clustering with 3 variables.
+
+```{r}
+p_train_3 <- data.frame('ssc_p' = placement_train$ssc_p, 'hsc_p' = placement_train$hsc_p,
+                        'degree_p' = placement_train$degree_p, 
+                        'hsc_s' = placement_train$hsc_s)
+```
+
+```{r}
+library(scatterplot3d)
+colors <- c("red", "blue", "green")
+colors <- colors[as.numeric(p_train_3$hsc_s)]
+scatterplot3d(p_train_3[,1:3], color=colors)
+```
+
+```{r}
+kmeans.fit <- kmeans(p_train_3[,c(-4)], 3)
+kmeans.fit
+```
+
+```{r}
+colors <- c("red", "blue", "green")
+colors <- colors[as.numeric(kmeans.fit$cluster)]
+scatterplot3d(p_train_3[,1:3], color=colors)
+```
+
+With an accuracy of 58.6%, this was not very effective. This is especially evident because not all clusters were the same size within our raw data, so our clustering model accounted far too much for the red label.
+
+# Question 3
+
+### Due to my lack of experience with Decision Trees and Random Forests in R, I will do this question using Python. This also gives me a chance to showcase an additional language.
+
+# Question 4
+
+### a. Gather the data from Mongo and bring it into R
+```{r warning=FALSE, message=FALSE}
+# set up mongodb through R - start mongodb in the terminal first
+
+#install.packages("devtools")
+library(devtools)
+#install_github(repo = "mongosoup/rmongodb")
+#install.packages("rmongodb")
+library(rmongodb)
+```
+
+```{r}
+# connect to mongodb and ensure that it is connected
+mongo <- mongo.create(host = "localhost")
+mongo.is.connected(mongo)
+```
+
+We need to setup our mongo database, which I have done in the terminal by running the following:
+\newline
+mongoimport --type csv -d stockDB -c ethereumCSV --headerline ETHUSD.csv
+\newline
+mongoimport --type csv -d stockDB -c googleCSV --headerline GOOG.csv
+\newline
+mongoimport --type csv -d stockDB -c gmeCSV --headerline GME_stock.csv
+\newline
+mongoimport --type csv -d stockDB -c dogeCSV --headerline DOGE-USD.csv
+\newline
+The -d and -c flags are very important here because these flags determine which database and collection the csv will go in. Once we need to pull data from the csv, we will need both of these names.
+
+```{r}
+# confirm that our database was created, we should see 'config' and our new stockDB
+mongo.get.databases(mongo)
+```
+
+```{r}
+eth_date_vec <- c()
+ethereum_bson <- mongo.find(mongo, ns = "stockDB.ethereumCSV")
+while(mongo.cursor.next(ethereum_bson)) {
+    tmp_bson <- mongo.cursor.value(ethereum_bson)
+    tmp_json <- mongo.bson.to.list(tmp_bson)
+    tmp_date <- tmp_json$Date
+    eth_date_vec <- append(eth_date_vec,tmp_date)
+}
+```
+
+```{r}
+google_date_vec <- c()
+google_bson <- mongo.find(mongo, ns = "stockDB.googleCSV")
+while(mongo.cursor.next(google_bson)) {
+    tmp_bson <- mongo.cursor.value(google_bson)
+    tmp_json <- mongo.bson.to.list(tmp_bson)
+    tmp_date <- tmp_json$Date
+    google_date_vec <- append(google_date_vec,tmp_date)
+}
+```
+
+```{r}
+gme_date_vec <- c()
+gme_bson <- mongo.find(mongo, ns = "stockDB.gmeCSV")
+while(mongo.cursor.next(gme_bson)) {
+    tmp_bson <- mongo.cursor.value(gme_bson)
+    tmp_json <- mongo.bson.to.list(tmp_bson)
+    tmp_date <- tmp_json$date
+    gme_date_vec <- append(gme_date_vec,tmp_date)
+}
+```
+
+```{r}
+eth_open_vec <- c()
+ethereum_bson <- mongo.find(mongo, ns = "stockDB.ethereumCSV")
+while(mongo.cursor.next(ethereum_bson)) {
+    tmp_bson <- mongo.cursor.value(ethereum_bson)
+    tmp_json <- mongo.bson.to.list(tmp_bson)
+    tmp_open <- tmp_json$Open
+    eth_open_vec <- append(eth_open_vec,tmp_open)
+}
+```
+
+```{r}
+google_open_vec <- c()
+google_bson <- mongo.find(mongo, ns = "stockDB.googleCSV")
+while(mongo.cursor.next(google_bson)) {
+    tmp_bson <- mongo.cursor.value(google_bson)
+    tmp_json <- mongo.bson.to.list(tmp_bson)
+    tmp_open <- tmp_json$Open
+    google_open_vec <- append(google_open_vec,tmp_open)
+}
+```
+
+```{r}
+gme_open_vec <- c()
+gme_bson <- mongo.find(mongo, ns = "stockDB.gmeCSV")
+while(mongo.cursor.next(gme_bson)) {
+    tmp_bson <- mongo.cursor.value(gme_bson)
+    tmp_json <- mongo.bson.to.list(tmp_bson)
+    tmp_open <- tmp_json$open_price
+    gme_open_vec <- append(gme_open_vec,tmp_open)
+}
+```
+
+```{r}
+doge_date_vec <- c()
+doge_bson <- mongo.find(mongo, ns = "stockDB.dogeCSV")
+while(mongo.cursor.next(doge_bson)) {
+    tmp_bson <- mongo.cursor.value(doge_bson)
+    tmp_json <- mongo.bson.to.list(tmp_bson)
+    tmp_date <- tmp_json$Date
+    doge_date_vec <- append(doge_date_vec,tmp_date)
+}
+```
+
+```{r}
+doge_open_vec <- c()
+doge_bson <- mongo.find(mongo, ns = "stockDB.dogeCSV")
+while(mongo.cursor.next(doge_bson)) {
+    tmp_bson <- mongo.cursor.value(doge_bson)
+    tmp_json <- mongo.bson.to.list(tmp_bson)
+    tmp_open <- tmp_json$Open
+    doge_open_vec <- append(doge_open_vec,tmp_open)
+}
+```
+
+```{r}
+## create our dataframes from the info we pulled from Mongo
+e <- data.frame("date" = eth_date_vec, "open" = eth_open_vec)
+go <- data.frame("date" = google_date_vec, "open" = google_open_vec)
+gm <- data.frame("date" = gme_date_vec, "open" = gme_open_vec)
+d <- data.frame("date" = doge_date_vec, "open" = doge_open_vec)
+e$date <- as.Date(e$date)
+go$date <- as.Date(go$date)
+gm$date <- as.Date(gm$date)
+d$date <- as.Date(d$date)
+## sort data by dates
+ethereum <- e[order(as.Date(e$date, format="%Y-%m-%d")),]
+google <- go[order(as.Date(go$date, format="%Y-%m-%d")),]
+gme <- gm[order(as.Date(gm$date, format="%Y-%m-%d")),]
+doge <- d[order(as.Date(d$date, format="%Y-%m-%d")),]
+```
+
+```{r}
+## slice the data into a common three year period
+  ## start: 01-03-2017
+  ## end: 12-31-2019
+
+ethereum <- ethereum[ethereum$date >= "2017-01-03" & ethereum$date <= "2019-12-31", ]
+google <- google[google$date >= "2017-01-03" & google$date <= "2019-12-31", ]
+gme <- gme[gme$date >= "2017-01-03" & gme$date <= "2019-12-31", ]
+doge <- doge[doge$date >= "2017-01-03" & doge$date <= "2019-12-31", ]
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+e <- read_csv("ETHUSD.csv")
+goo <- read_csv("GOOG.csv")
+gm <- read_csv("GME_stock.csv")
+dog <- read_csv("DOGE-USD.csv")
+
+ethereum <- data.frame("date" = e$Date, "open" = e$Open)
+google <- data.frame("date" = goo$Date, "open" = goo$Open)
+gme <- data.frame("date" = gm$date, "open" = gm$open_price)
+doge <- data.frame("date" = dog$Date, "open" = dog$Open)
+
+gme <- gme[order(as.Date(gme$date, format="%Y-%m-%d")),]
+
+ethereum <- ethereum[ethereum$date >= "2017-01-03" & ethereum$date <= "2019-12-31", ]
+google <- google[google$date >= "2017-01-03" & google$date <= "2019-12-31", ]
+gme <- gme[gme$date >= "2017-01-03" & gme$date <= "2019-12-31", ]
+doge <- doge[doge$date >= "2017-01-03" & doge$date <= "2019-12-31", ]
+```
+
+```{r}
+head(ethereum)
+```
+
+```{r}
+head(google)
+```
+
+```{r}
+head(gme)
+```
+
+```{r}
+head(doge)
+```
+
+### b. Plot the moving average for each dataset and find the MSE. Which MA is the best choice?
+
+```{r}
+library("TTR")
+eth_ts <- ts(ethereum$open)
+
+week <- as.vector(SMA(eth_ts, n=7))
+mse <- (week - ethereum$open)^2
+sum(na.omit(mse))
+
+month <- as.vector(SMA(eth_ts, n=30))
+mse <- (month - ethereum$open)^2
+sum(na.omit(mse))
+
+three_month <- as.vector(SMA(eth_ts, n=90))
+mse <- (three_month - ethereum$open)^2
+sum(na.omit(mse))
+
+plot.ts(SMA(eth_ts, n=7))
+plot.ts(SMA(eth_ts, n=30))
+plot.ts(SMA(eth_ts, n=90))
+```
+
+We can see that the MSE was minimized under the 7 day moving average for ethereum. We will repeat for the other 3.
+
+```{r}
+google_ts <- ts(google$open)
+
+week <- as.vector(SMA(google_ts, n=5))
+mse <- (week - google$open)^2
+sum(na.omit(mse))
+
+month <- as.vector(SMA(google_ts, n=20))
+mse <- (month - google$open)^2
+sum(na.omit(mse))
+
+three_month <- as.vector(SMA(google_ts, n=60))
+mse <- (three_month - google$open)^2
+sum(na.omit(mse))
+
+plot.ts(SMA(google_ts, n=5))
+plot.ts(SMA(google_ts, n=20))
+plot.ts(SMA(google_ts, n=60))
+```
+
+First I want to say that for Google (and GME when we get there), I am using 5 days for a week, 20 days for a month, and 60 days for 3 months because stocks (not cryptos), are only on the open market during weekdays. There is no data for Saturday and Sunday. We can see that once again our MSE is minimized for the 5 day moving average.
+
+```{r}
+gme_ts <- ts(gme$open)
+
+week <- as.vector(SMA(gme_ts, n=5))
+mse <- (week - gme$open)^2
+sum(na.omit(mse))
+
+month <- as.vector(SMA(gme_ts, n=20))
+mse <- (month - gme$open)^2
+sum(na.omit(mse))
+
+three_month <- as.vector(SMA(gme_ts, n=60))
+mse <- (three_month - gme$open)^2
+sum(na.omit(mse))
+
+plot.ts(SMA(gme_ts, n=5))
+plot.ts(SMA(gme_ts, n=20))
+plot.ts(SMA(gme_ts, n=60))
+```
+
+Same result. 5 day moving average minimizes MSE here.
+
+```{r}
+doge_ts <- ts(doge$open)
+
+week <- as.vector(SMA(doge_ts, n=7))
+mse <- (week - doge$open)^2
+sum(na.omit(mse))
+
+month <- as.vector(SMA(doge_ts, n=30))
+mse <- (month - doge$open)^2
+sum(na.omit(mse))
+
+three_month <- as.vector(SMA(doge_ts, n=90))
+mse <- (three_month - doge$open)^2
+sum(na.omit(mse))
+
+plot.ts(SMA(doge_ts, n=7))
+plot.ts(SMA(doge_ts, n=30))
+plot.ts(SMA(doge_ts, n=90))
+```
+
+Once again, 7 day moving average has minimized MSE. I can confidently state that using the moving average for 1 week is a better overall time window for this type of data.
+
+
+### c. Create a new column in the data for if with the first standard deviation of the mean or above or below it. BECAUSE Cryptos have data on the weekends, we will need to remove these prices so that all of our datasets cover the exact same dates. If we do not make this change, our conditional probability will calculated using the wrong context of dates.
+
+```{r}
+## make sure ethereum and doge now have the proper dates and weekends cut off
+common_dates <- as.Date(intersect(ethereum$date, gme$date), origin = '1970-01-01')
+ethereum <- subset(ethereum, date %in% common_dates)
+doge <- subset(doge, date %in% common_dates)
+```
+
+```{r}
+ethereum$stdev <- NA
+google$stdev <- NA
+gme$stdev <- NA
+doge$stdev <- NA
+ethereum$mean <- NA
+google$mean <- NA
+gme$mean <- NA
+doge$mean <- NA
+
+## insert the SD into stdev column for each dataset for the previous 30 days
+x = 31
+while (x < 755){
+  ethereum$stdev[x] <- sd(ethereum$open[(x-30):x])
+  google$stdev[x] <- sd(google$open[(x-30):x])
+  gme$stdev[x] <- sd(gme$open[(x-30):x])
+  doge$stdev[x] <- sd(doge$open[(x-30):x])
+  ethereum$mean[x] <- mean(ethereum$open[(x-30):x])
+  google$mean[x] <- mean(google$open[(x-30):x])
+  gme$mean[x] <- mean(gme$open[(x-30):x])
+  doge$mean[x] <- mean(doge$open[(x-30):x])
+  x = x + 1
+}
+```
+
+```{r}
+ethereum$stdev_class <- NA
+x = 31
+while (x < 755){
+  if (ethereum$open[x] > (ethereum$mean[x] + ethereum$stdev[x])){
+    ethereum$stdev_class[x] <- 'high'
+  }
+  else if(ethereum$open[x] < (ethereum$mean[x] - ethereum$stdev[x])){
+    ethereum$stdev_class[x] <- 'low'
+  }
+  else{
+    ethereum$stdev_class[x] <- 'medium'
+  }
+  x = x + 1
+}
+```
+
+```{r}
+google$stdev_class <- NA
+x = 31
+while (x < 755){
+  if (google$open[x] > (google$mean[x] + google$stdev[x])){
+    google$stdev_class[x] <- 'high'
+  }
+  else if(google$open[x] < (google$mean[x] - google$stdev[x])){
+    google$stdev_class[x] <- 'low'
+  }
+  else{
+    google$stdev_class[x] <- 'medium'
+  }
+  x = x + 1
+}
+```
+
+```{r}
+gme$stdev_class <- NA
+x = 31
+while (x < 755){
+  if (gme$open[x] > (gme$mean[x] + gme$stdev[x])){
+    gme$stdev_class[x] <- 'high'
+  }
+  else if(gme$open[x] < (gme$mean[x] - gme$stdev[x])){
+    gme$stdev_class[x] <- 'low'
+  }
+  else{
+    gme$stdev_class[x] <- 'medium'
+  }
+  x = x + 1
+}
+```
+
+```{r}
+doge$stdev_class <- NA
+x = 31
+while (x < 755){
+  if (doge$open[x] > (doge$mean[x] + doge$stdev[x])){
+    doge$stdev_class[x] <- 'high'
+  }
+  else if(doge$open[x] < (doge$mean[x] - doge$stdev[x])){
+    doge$stdev_class[x] <- 'low'
+  }
+  else{
+    doge$stdev_class[x] <- 'medium'
+  }
+  x = x + 1
+}
+```
+
+### c. (cont.) Find the conditional probability
+
+```{r}
+## create vectors for t, t-1, t-2, and t-3
+eth_t3 <- ethereum$stdev_class[31:751]
+eth_t2 <- ethereum$stdev_class[32:752]
+eth_t1 <- ethereum$stdev_class[33:753]
+eth_t <- ethereum$stdev_class[34:754]
+
+# find the numerator of the conditional probability
+num <- sum(eth_t == 'high' & eth_t1 == 'low' & eth_t2 == 'low' & eth_t3 == 'low')
+num
+
+# find the denominator of the conditional probability
+den <- sum(eth_t1 == 'low' & eth_t2 == 'low' & eth_t3 == 'low')
+den
+
+# divide for conditional probability
+num/den
+```
+
+Based on our calculations, if there are three straight days in the low category, the probability of the next day being in the high category is zero.
+
+```{r}
+gme_t1 <- gme$stdev_class[31:753]
+goog_t1 <-google$stdev_class[31:753]
+doge_t1 <- doge$stdev_class[31:753]
+eth_t <- ethereum$stdev_class[32:754]
+
+# find the numerator of the conditional probability
+num <- sum(eth_t == 'high' & gme_t1 == 'low' & goog_t1 == 'low' & doge_t1 == 'low')
+num
+
+# find the denominator of the conditional probability
+den <- sum(gme_t1 == 'low' & goog_t1 == 'low' & doge_t1 == 'low')
+den
+
+# divide for conditional probability
+num/den
+```
+
+Based on our calculations, if the previous day produced low prices for GME, Google, and Doge, the probability of Ethereum being in the high price category is once again zero.
+
+This does make sense when you think about how rare that particular sequence of events should be, but it is curious that yet another probability is zero.
+
+I want to at least show that my data is not screwed up and that a different conditional probability would yield a non-zero result, so I will show the probability of ethereum yielding the high category given the previous three time periods were medium.
+
+### Just an example for show, not a real question
+```{r}
+## create vectors for t, t-1, t-2, and t-3
+eth_t3 <- ethereum$stdev_class[31:751]
+eth_t2 <- ethereum$stdev_class[32:752]
+eth_t1 <- ethereum$stdev_class[33:753]
+eth_t <- ethereum$stdev_class[34:754]
+
+# find the numerator of the conditional probability
+num <- sum(eth_t == 'high' & eth_t1 == 'medium' & eth_t2 == 'medium' & eth_t3 == 'medium')
+num
+
+# find the denominator of the conditional probability
+den <- sum(eth_t1 == 'medium' & eth_t2 == 'medium' & eth_t3 == 'medium')
+den
+
+# divide for conditional probability
+num/den
+```
+
+Just for show, we can see that if the previous three categories of ethereum were medium, then the probability of the next day being high would be 6%
+
+### d. Fit a multiple regression model for ethereum based upon its price for the previous 4 days. I will still use the data without the weekend datapoints as Question 5 will require us to use the Google data. This is for simplicities sake and comparison reasons.
+
+```{r}
+eth_t4 <- ethereum$open[1:750]
+eth_t3 <- ethereum$open[2:751]
+eth_t2 <- ethereum$open[3:752]
+eth_t1 <- ethereum$open[4:753]
+eth_t <- ethereum$open[5:754]
+
+ethereum_model <- lm(eth_t ~ eth_t1 + eth_t2 + eth_t3 + eth_t4)
+summary(ethereum_model)
+```
+
+### d. (cont.) add in the doge parameters and compare the models
+
+```{r}
+eth_t4 <- ethereum$open[1:750]
+eth_t3 <- ethereum$open[2:751]
+eth_t2 <- ethereum$open[3:752]
+eth_t1 <- ethereum$open[4:753]
+eth_t <- ethereum$open[5:754]
+
+doge_t4 <- doge$open[1:750]
+doge_t3 <- doge$open[2:751]
+doge_t2 <- doge$open[3:752]
+doge_t1 <- doge$open[4:753]
+
+ethereum_and_doge_model <- lm(eth_t ~ eth_t1 + eth_t2 + eth_t3 + eth_t4 + 
+                                doge_t1 + doge_t2 + doge_t3 + doge_t4)
+summary(ethereum_and_doge_model)
+```
+
+### attempt to find redundancies in our model and remove them
+
+```{r}
+ethereum_and_doge_model_remove_redundant <- lm(eth_t ~ eth_t1 + eth_t3 + eth_t4 + 
+                                doge_t1 + doge_t2 + doge_t3)
+summary(ethereum_and_doge_model_remove_redundant)
+```
+
+The fit from ethereum only to ethereum and doge together in the same model did improve the fit of our model, but the improvement was more or less negligible. If we were looking for absolute simplicity, there would be no need to include the data on doge into our model.
+
+We can find some redundant parameters, by removing some parameters that were not significant at the five percent level, we managed to keep our R^2 value exactly the same. The RSE value increased only .03 with this change. We removed eth_t2 and doge_t4.
+
+# Question 5: Code and Results Used in Presentation
+
+```{r}
+eth_t9 <- ethereum$open[1:745]
+eth_t8 <- ethereum$open[2:746]
+eth_t7 <- ethereum$open[3:747]
+eth_t6 <- ethereum$open[4:748]
+eth_t5 <- ethereum$open[5:749]
+eth_t4 <- ethereum$open[6:750]
+eth_t3 <- ethereum$open[7:751]
+eth_t2 <- ethereum$open[8:752]
+eth_t1 <- ethereum$open[9:753]
+eth_t <- ethereum$open[10:754]
+
+ethereum_model_more_dates <- lm(eth_t ~ eth_t1 + eth_t2 + eth_t3 + eth_t4 + eth_t5 + eth_t6
+                              + eth_t7 + eth_t8 + eth_t9)
+ethereum_model_4 <- lm(eth_t ~ eth_t1 + eth_t2 + eth_t3 + eth_t4)
+summary(ethereum_model_more_dates)
+```
+
+```{r}
+anova(ethereum_model_4, ethereum_model_more_dates)
+```
+
+```{r}
+eth_t4 <- ethereum$open[1:750]
+eth_t3 <- ethereum$open[2:751]
+eth_t2 <- ethereum$open[3:752]
+eth_t1 <- ethereum$open[4:753]
+eth_t <- ethereum$open[5:754]
+
+google_t4 <- google$open[1:750]
+google_t3 <- google$open[2:751]
+google_t2 <- google$open[3:752]
+google_t1 <- google$open[4:753]
+
+ethereum_and_google_model <- lm(eth_t ~ eth_t1 + eth_t2 + eth_t3 + eth_t4 + 
+                                google_t1 + google_t2 + google_t3 + google_t4)
+summary(ethereum_and_google_model)
+```
+
+```{r}
+anova(ethereum_model, ethereum_and_google_model)
+```
+
+```{r}
+eth_xgb1 <- data.frame(eth_t, eth_t1, eth_t2, eth_t3, eth_t4)
+
+eth_xgb1 <- as.matrix(eth_xgb1)
+
+library(xgboost)
+
+train = eth_xgb1[1:650,]
+test = eth_xgb1[651:750,]
+
+
+xtrain = train[,-1]
+ytrain = train[,1]
+
+xtest = test[,-1]
+ytest = test[,1]
+
+# create xgb model
+xgb = xgboost(xtrain, label = ytrain, eta = 0.3, nrounds = 750, verbose = 0, prediction = TRUE)
+xgb.plot.importance(xgb.importance(model = xgb))
+print(xgb.importance(model = xgb))
+
+#RSME
+sqrt(mean((ytest - predict(xgb, xtest))^2))
+```
+
+```{r}
+df <- data.frame("index" = 1:100, "predict" = predict(xgb, xtest), "actual" = ytest)
+ggplot(data = df) + geom_point(aes(x = index, y = predict, color = 'prediction')) +
+  geom_point(aes(x = index, y = actual, color = 'actual')) +
+  geom_line(aes(x = index, y = actual, color = 'actual')) + 
+  geom_line(aes(x = index, y = predict, color = 'prediction')) +
+  xlab("Daily Index") +
+  ylab("Price")
+```
+

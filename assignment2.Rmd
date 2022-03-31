@@ -1,0 +1,350 @@
+---
+title: "STA6714: Assignment 2"
+author: "Kyle Scott"
+date: "11/12/2021"
+documentclass: report
+geometry: margin=2cm
+header-includes:
+    - \usepackage{setspace}\doublespacing
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+\begin{center}
+\LARGE QUESTION ONE: Crypto Prices
+\end{center}
+
+## 0. Read in the relevant csv files from kaggle and display the data
+
+```{r warning=FALSE, message=FALSE}
+## we have five different crypto csvs to read in: bitcoin, cardano,
+## iota, xrp, and ethereum
+
+library(readr)
+bitcoin <- read_csv("coin_Bitcoin.csv")
+cardano <- read_csv("coin_Cardano.csv")
+ethereum <- read_csv("coin_Ethereum.csv")
+iota <- read_csv("coin_iota.csv")
+XRP <- read_csv("coin_XRP.csv")
+
+head(bitcoin)
+head(cardano)
+head(ethereum)
+head(iota)
+head(XRP)
+```
+
+$~$
+
+We can see that for both bitcoin and XRP, the Volume column is filled with 0's which should not be the case. Upon further inspection, the raw data does have 0's in that column for both bitcoin and XRP for the first 100 or 200 dates - This was not a problem with reading in the data.
+
+## 1. Plotting data for bitcoin overtime
+
+We want to plot the price of bitcoin overtime. For this purpose, we will use the closing price each day and plot it against time to create our version of the bitcoin price chart.
+
+*I should note that this can be done by converting the 'Close' column to a time series and plotting the data that way, but I prefer the aesthetics of ggplot so that's what I decided to use for the first couple plots. The nice thing about using a time series, however, is the ability to plot smoother curves using moving averages and weighted averages, etc., if those plots are necessary.
+
+```{r}
+## We will need to read in the ggplot library to create our plot
+library(ggplot2)
+
+## I came across an error with dates, so we need to save the date
+## column as a date variable without the time clouding the column
+library(anytime)
+bitcoin$Date <- as.Date(anytime(bitcoin$Date))
+
+## Create our initial ggplot, scaling the x axis as a date
+bit_price <- ggplot(bitcoin, aes(Date, Close)) + 
+  geom_line() +
+  scale_x_date("Year") +
+  ylab("Closing Price") +
+  theme_linedraw()
+
+## Add a title and center it
+bit_price <- bit_price + ggtitle("Bitcoin Price") + theme(plot.title = element_text(hjust = 0.5))
+
+## Plot!
+bit_price
+```
+
+## 2. Plot all 5 Crypto's overtime on the same plot
+
+We can use the same method as shown for bitcoin in part 1, however we just need to overlay the other 4 coins
+
+```{r}
+## ggplot doesn't work well with separate dataframes
+## first - combine all 5 cryptos into 1 df
+## we have the 'Name' column to distinguish
+cardano$Date <- as.Date(anytime(cardano$Date))
+ethereum$Date <- as.Date(anytime(ethereum$Date))
+iota$Date <- as.Date(anytime(iota$Date))
+XRP$Date <- as.Date(anytime(XRP$Date))
+
+crypto_full <- rbind(bitcoin, cardano, ethereum, iota, XRP)
+
+## create the initial plot, coloring by 'Name'
+crypto_price <- ggplot(data = crypto_full, 
+                       mapping = aes(Date, Close, color = Name)) + 
+  geom_line() +
+  scale_x_date("Year") +
+  ylab("Closing Price") +
+  theme_linedraw()
+
+## Add and center the title
+crypto_price <- crypto_price + ggtitle("Crypto Prices") + theme(plot.title = element_text(hjust = 0.5))
+
+## Plot!
+crypto_price
+```
+
+This plot doesn't show us much other than the fact that bitcoin has a price that is magnitudes higher than some of the other cryptos. Cardano, Ethereum and XRP are all cluttered at the very bottom of the graph with a high price of under 50.
+
+## 3. Display the auto correlation of each trace
+
+Now we will convert our data to time series so that we can display the auto correlation.
+
+### Bitcoin
+
+```{r}
+## create a time series for bitcoin
+bitcoin_ts <- ts(bitcoin$Close, frequency = 365, start(2013, 119))
+bitcoin_ts_comp <- decompose(bitcoin_ts)
+plot(bitcoin_ts_comp)
+## default acf plot
+acf(bitcoin_ts_comp$seasonal)
+## increase lag max to show trends
+acf(bitcoin_ts_comp$seasonal, lag.max = 2000)
+```
+
+### Cardano
+
+```{r}
+cardano_ts <- ts(cardano$Close, frequency = 365, start = c(2017, 275))
+cardano_ts_comp <- decompose(cardano_ts)
+plot(cardano_ts_comp)
+## default acf plot
+acf(cardano_ts_comp$seasonal)
+## increase lag max to show trends
+acf(cardano_ts_comp$seasonal, lag.max = 2000)
+```
+
+### Ethereum
+
+```{r}
+ethereum_ts <- ts(ethereum$Close, frequency =  365, start = c(2015, 220))
+ethereum_ts_comp <- decompose(ethereum_ts)
+plot(ethereum_ts_comp)
+## default acf plot
+acf(ethereum_ts_comp$seasonal)
+## increase lag max to show trends
+acf(ethereum_ts_comp$seasonal, lag.max = 2000)
+```
+
+### Iota
+
+```{r}
+iota_ts <- ts(iota$Close, frequency = 365, start = c(2017, 165))
+iota_ts_comp <- decompose(iota_ts)
+plot(iota_ts_comp)
+## default acf plot
+acf(iota_ts_comp$seasonal)
+## increase lag max to show trends
+acf(iota_ts_comp$seasonal, lag.max = 2000)
+```
+
+### XRP
+
+```{r}
+XRP_ts <- ts(XRP$Close, frequency = 365, start = c(2013, 217))
+XRP_ts_comp <- decompose(XRP_ts)
+plot(XRP_ts_comp)
+## default acf plot
+acf(XRP_ts_comp$seasonal)
+## increase lag max to show trends
+acf(XRP_ts_comp$seasonal, lag.max = 2000)
+```
+
+Looking at all five of these ACF plots, we can see that none of them follow a uniform seasonal pattern. There does not appear to be any impact of the seasons on how well a specific cryptocurrency is performing. This shouldn't be all that surprising, currencies and stocks go up and down all the time for various reasons in which the date is completely irrelevant. It isn't like the ebs and flows of seasonal weather, which does follow a predictable quarterly pattern.
+
+
+## 4. Use Decision Trees to predict the price of the cardano coin
+
+```{r}
+d1 <- cardano$Close[1:1368]
+d2 <- cardano$Close[2:1369]
+d3 <- cardano$Close[3:1370]
+d4 <- cardano$Close[4:1371]
+d5 <- cardano$Close[5:1372]
+d6 <- cardano$Close[6:1373]
+cardano_five <- data.frame(d1, d2, d3, d4, d5, d6)
+
+library(party)
+
+card_five_tree <- ctree(d6 ~ d1 + d2 + d3 + d4 + d5, data = cardano_five)
+card_five_tree
+```
+
+```{r}
+d1 <- cardano$Close[1:1363]
+d2 <- cardano$Close[2:1364]
+d3 <- cardano$Close[3:1365]
+d4 <- cardano$Close[4:1366]
+d5 <- cardano$Close[5:1367]
+d6 <- cardano$Close[6:1368]
+d7 <- cardano$Close[7:1369]
+d8 <- cardano$Close[8:1370]
+d9 <- cardano$Close[9:1371]
+d10 <- cardano$Close[10:1372]
+d11 <- cardano$Close[11:1373]
+
+cardano_ten <- data.frame(d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11)
+
+library(party)
+
+card_ten_tree <- ctree(d11 ~ d1 + d2 + d3 + d4 + d5 + d6 + d7 + d8 + d9 + d10, data = cardano_ten)
+card_ten_tree
+```
+
+We can see through our two decision trees that the decision tree method takes into account very little what the price was many days prior to the current day. In fact, the two trees appear to be exactly the same. This particular tree appears mainly interested in the previous day with a small emphasis on the two days prior to that. Overall, there is zero difference between the trees at 5 days and at 10 days. Considering we are dealing with a time series, it makes sense to me that the day prior to the current day is by far the most important predictor of current price.
+
+## 5. Use Decision Trees to predict the price of Cardano using Bitcoin and XRP
+
+```{r}
+# we have to make sure all the dates line up here. this way all data 
+  # begins at 10-02-2017
+d1 <- bitcoin$Close[1618:2985]
+d2 <- bitcoin$Close[1619:2986]
+d3 <- bitcoin$Close[1620:2987]
+d4 <- bitcoin$Close[1621:2988]
+d5 <- bitcoin$Close[1622:2989]
+d6 <- cardano$Close[6:1373]
+
+cardano_five_w_bit <- data.frame(d1, d2, d3, d4, d5, d6)
+
+library(party)
+library(partykit)
+
+card_five_w_bit_tree <- ctree(d6 ~ d1 + d2 + d3 + d4 + d5, data = cardano_five_w_bit)
+
+print(card_five_w_bit_tree)
+```
+
+```{r}
+# we have to make sure all the dates line up here. this way all data 
+  # begins at 10-02-2017
+d1 <- bitcoin$Close[1618:2985]
+d2 <- bitcoin$Close[1619:2986]
+d3 <- bitcoin$Close[1620:2987]
+d4 <- bitcoin$Close[1621:2988]
+d5 <- bitcoin$Close[1622:2989]
+d6 <- XRP$Close[1520:2887]
+d7 <- XRP$Close[1521:2888]
+d8 <- XRP$Close[1522:2889]
+d9 <- XRP$Close[1523:2890]
+d10 <- XRP$Close[1524:2891]
+d11 <- cardano$Close[6:1373]
+
+cardano_five_w_bit_xrp <- data.frame(d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11)
+
+library(party)
+library(partykit)
+
+card_five_w_bit_xrp_tree <- ctree(d11 ~ d1 + d2 + d3 + d4 + d5 + d6 + d7 + d8 + d9 + d10, data = cardano_five_w_bit_xrp)
+
+print(card_five_w_bit_xrp_tree)
+```
+
+Taking our two trees, the first tree gave us a total error of 46.7 while the second tree gave us a total error of 9.6. We can see that the second tree with the addition of the XRP coin has significantly reduced the error in our predicitive ability. In my opinion, this makes sense because Bitcoin did not act like a regular crypto during the peak of the crypto boom. Bitcoin shot far above its counterparts and likely wouldn't be a good price predictor for other currencies on its own.
+
+## 6. Use XGBoost to predict the price of Cardano using the previous 5 days of Bitcoin and XRP
+
+```{r}
+# we have to make sure all the dates line up here. this way all data 
+  # begins at 10-02-2017
+d1 <- bitcoin$Close[1618:2985]
+d2 <- bitcoin$Close[1619:2986]
+d3 <- bitcoin$Close[1620:2987]
+d4 <- bitcoin$Close[1621:2988]
+d5 <- bitcoin$Close[1622:2989]
+d6 <- cardano$Close[6:1373]
+
+cardano_xgb1 <- data.frame(d1, d2, d3, d4, d5, d6)
+
+cardano_xgb1 <- as.matrix(cardano_xgb1)
+
+library(xgboost)
+
+#setup train and test sets
+train = sample(1:dim(cardano_xgb1)[1],1000)
+test = setdiff(1:dim(cardano_xgb1)[1],train)
+
+xtrain = cardano_xgb1[train,-6]
+ytrain = cardano_xgb1[train,6]
+
+xtest = cardano_xgb1[test,-6]
+ytest = cardano_xgb1[test,6]
+
+params = list(eta = 0.1, colsample_bylevel = 2/3,
+                subsample = 3/4, max_depth = 6, min_child_weigth = 1)
+# create xgb model
+xgb = xgboost(xtrain, label = ytrain, nrounds = 750, 
+            params = params, verbose = 0, verbosity = 0)
+
+# plot the absolute value of the error within the test set
+plot(abs(predict(xgb, xtest) - ytest))
+
+total_err <- sum(abs(predict(xgb, xtest) - ytest))
+# print the sum of all errors
+total_err
+```
+
+
+```{r}
+# we have to make sure all the dates line up here. this way all data 
+  # begins at 10-02-2017
+d1 <- bitcoin$Close[1618:2985]
+d2 <- bitcoin$Close[1619:2986]
+d3 <- bitcoin$Close[1620:2987]
+d4 <- bitcoin$Close[1621:2988]
+d5 <- bitcoin$Close[1622:2989]
+d6 <- XRP$Close[1520:2887]
+d7 <- XRP$Close[1521:2888]
+d8 <- XRP$Close[1522:2889]
+d9 <- XRP$Close[1523:2890]
+d10 <- XRP$Close[1524:2891]
+d11 <- cardano$Close[6:1373]
+
+cardano_xgb <- data.frame(d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11)
+
+cardano_xgb <- as.matrix(cardano_xgb)
+
+library(xgboost)
+
+#setup train and test sets
+train = sample(1:dim(cardano_xgb)[1],1000)
+test = setdiff(1:dim(cardano_xgb)[1],train)
+
+xtrain = cardano_xgb[train,-11]
+ytrain = cardano_xgb[train,11]
+
+xtest = cardano_xgb[test,-11]
+ytest = cardano_xgb[test,11]
+
+params = list(eta = 0.1, colsample_bylevel = 2/3,
+                subsample = 3/4, max_depth = 6, min_child_weigth = 1)
+#create xgb model
+xgb = xgboost(xtrain, label = ytrain, nrounds = 750, 
+            params = params, verbose = 0, verbosity = 0)
+
+#plot the absolute value of all errors
+plot(abs(predict(xgb, xtest) - ytest))
+
+total_err <- sum(abs(predict(xgb, xtest) - ytest))
+# print the sum of all errors
+total_err
+```
+
+We can see that our model did find a quite a large decrease in total error when adding in the values from the XRP coin to the already existing bitcoin model.
