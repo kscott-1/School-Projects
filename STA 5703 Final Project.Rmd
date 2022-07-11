@@ -1,0 +1,278 @@
+---
+title: "STA 5703 Final Project"
+author: "Kyle Scott"
+date: \today
+documentclass: report
+geometry: margin=2cm
+header-includes:
+    - \usepackage{setspace}\doublespacing
+    - \usepackage{mathtools}
+    - \usepackage{physics}
+    - \usepackage{enumitem}
+    - \usepackage{color}
+    - \usepackage{soul}
+    - \usepackage{graphicx}
+output: pdf_document
+---
+
+\newpage
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=F, warning=F}
+library(readr)
+train <- read_csv("TRAIN_upd.csv", 
+    col_types = cols(ps_ind_01 = col_character(),
+        ps_ind_02_cat = col_character(), 
+        ps_ind_03 = col_character(), 
+        ps_ind_04_cat = col_factor(levels = c("0", "1")),
+        ps_ind_05_cat = col_character(), 
+        target = col_factor(levels = c("0", "1")),
+        ps_ind_06_bin = col_factor(levels = c("0", "1")), 
+        ps_ind_07_bin = col_factor(levels = c("0", "1")),
+        ps_ind_08_bin = col_factor(levels = c("0", "1")), 
+        ps_ind_09_bin = col_factor(levels = c("0", "1")), 
+        ps_ind_10_bin = col_factor(levels = c("0", "1")), 
+        ps_ind_11_bin = col_factor(levels = c("0", "1")),
+        ps_ind_12_bin = col_factor(levels = c("0", "1")), 
+        ps_ind_13_bin = col_factor(levels = c("0", "1")),
+        ps_ind_16_bin = col_factor(levels = c("0", "1")), 
+        ps_ind_17_bin = col_factor(levels = c("0", "1")), 
+        ps_ind_18_bin = col_factor(levels = c("0", "1")), 
+        ps_car_01_cat = col_character(), 
+        ps_car_02_cat = col_character(), 
+        ps_car_03_cat = col_character(), 
+        ps_car_04_cat = col_character(), 
+        ps_car_05_cat = col_character(), 
+        ps_car_06_cat = col_character(),
+        ps_car_07_cat = col_character(), 
+        ps_car_08_cat = col_character(), 
+        ps_car_09_cat = col_character(), 
+        ps_car_10_cat = col_character(), 
+        ps_car_11_cat = col_character(), 
+        ps_calc_15_bin = col_factor(levels = c("0", "1")), 
+        ps_calc_16_bin = col_factor(levels = c("0", "1")), 
+        ps_calc_17_bin = col_factor(levels = c("0", "1")), 
+        ps_calc_18_bin = col_factor(levels = c("0", "1")), 
+        ps_calc_19_bin = col_factor(levels = c("0", "1")), 
+        ps_calc_20_bin = col_factor(levels = c("0", "1"))))
+test <- read_csv("SCORE.csv",
+      col_types = cols(ps_ind_01 = col_character(),
+        ps_ind_02_cat = col_character(), 
+        ps_ind_03 = col_character(), 
+        ps_ind_04_cat = col_factor(levels = c("0", "1")),
+        ps_ind_05_cat = col_character(), 
+        target = col_factor(levels = c("0", "1")),
+        ps_ind_06_bin = col_factor(levels = c("0", "1")), 
+        ps_ind_07_bin = col_factor(levels = c("0", "1")),
+        ps_ind_08_bin = col_factor(levels = c("0", "1")), 
+        ps_ind_09_bin = col_factor(levels = c("0", "1")), 
+        ps_ind_10_bin = col_factor(levels = c("0", "1")), 
+        ps_ind_11_bin = col_factor(levels = c("0", "1")),
+        ps_ind_12_bin = col_factor(levels = c("0", "1")), 
+        ps_ind_13_bin = col_factor(levels = c("0", "1")),
+        ps_ind_16_bin = col_factor(levels = c("0", "1")), 
+        ps_ind_17_bin = col_factor(levels = c("0", "1")), 
+        ps_ind_18_bin = col_factor(levels = c("0", "1")), 
+        ps_car_01_cat = col_character(), 
+        ps_car_02_cat = col_character(), 
+        ps_car_03_cat = col_character(), 
+        ps_car_04_cat = col_character(), 
+        ps_car_05_cat = col_character(), 
+        ps_car_06_cat = col_character(),
+        ps_car_07_cat = col_character(), 
+        ps_car_08_cat = col_character(), 
+        ps_car_09_cat = col_character(), 
+        ps_car_10_cat = col_character(), 
+        ps_car_11_cat = col_character(), 
+        ps_calc_15_bin = col_factor(levels = c("0", "1")), 
+        ps_calc_16_bin = col_factor(levels = c("0", "1")), 
+        ps_calc_17_bin = col_factor(levels = c("0", "1")), 
+        ps_calc_18_bin = col_factor(levels = c("0", "1")), 
+        ps_calc_19_bin = col_factor(levels = c("0", "1")), 
+        ps_calc_20_bin = col_factor(levels = c("0", "1"))))
+```
+
+```{r}
+set.seed(42)
+sample <- sample(c(T, F), nrow(train), replace = T, prob = c(0.9, 0.1))
+train_mod <- train[sample, ]
+test_mod <- train[!sample, ]
+```
+
+```{r}
+model <- glm(target ~ ., family = "binomial", data = train_mod)
+```
+
+```{r, message=F, warning=F}
+predicted <- predict(model, test_mod, type = "response")
+```
+
+```{r,message=F, warning=F}
+library(pROC)
+library(ggplot2)
+
+roc_obj <- roc(test_mod$target, predicted)
+
+ggroc(roc_obj)
+
+auc(roc_obj)
+```
+
+```{r}
+table(train_mod$target)
+```
+
+```{r}
+library(ROSE)
+train_both <- ovun.sample(target ~ ., data = train_mod, method = "both", p = 0.5, N = 449048, seed = 42)$data
+```
+
+```{r}
+library(ROSE)
+train_over <- ovun.sample(target ~ ., data = train_mod, method = "over", N = 865300, seed = 42)$data
+```
+
+```{r}
+library(ROSE)
+train_under <- ovun.sample(target ~ ., data = train_mod, method = "under", N = 32700, seed = 42)$data
+```
+
+```{r}
+model_both <- glm(target ~ ., family = "binomial", data = train_both)
+```
+
+```{r, message=F, warning=F}
+predicted_both <- predict(model_both, test_mod, type = "response")
+
+summary(model_both)
+```
+
+```{r,message=F, warning=F}
+library(pROC)
+library(ggplot2)
+
+roc_obj <- roc(test_mod$target, predicted_both)
+
+ggroc(roc_obj)
+
+auc(roc_obj)
+```
+
+```{r}
+model_over <- glm(target ~ ., family = "binomial", data = train_over)
+```
+
+```{r, message=F, warning=F}
+predicted_over <- predict(model_over, test_mod, type = "response")
+
+summary(model_over)
+```
+
+```{r,message=F, warning=F}
+library(pROC)
+library(ggplot2)
+
+roc_obj <- roc(test_mod$target, predicted_over)
+
+ggroc(roc_obj)
+
+auc(roc_obj)
+```
+
+```{r}
+model_under <- glm(target ~ ., family = "binomial", data = train_under)
+```
+
+```{r, message=F, warning=F}
+predicted_under <- predict(model_under, test_mod, type = "response")
+
+summary(model_under)
+```
+
+```{r,message=F, warning=F}
+library(pROC)
+library(ggplot2)
+
+roc_obj <- roc(test_mod$target, predicted_under)
+
+ggroc(roc_obj)
+
+auc(roc_obj)
+```
+
+```{r}
+table(train$target)
+```
+
+```{r}
+library(ROSE)
+train_full <- ovun.sample(target ~ ., data = train, method = "over", N = 998240, seed = 42)$data
+```
+
+```{r}
+model_full <- glm(target ~ ., family = "binomial", data = train_full)
+```
+
+```{r}
+library(caret)
+
+df <- data.frame(matrix(ncol = 2, nrow = 0))
+colnames(df) <- c("cutoff", "profit")
+    
+maxprof <- function(cutf){
+
+pred <- ifelse(predicted_both > cutf, 1, 0)
+
+conf <- confusionMatrix(factor(pred), factor(test_mod$target), positive = as.character(1))
+
+a <- conf$table
+
+tmp <- c(cutf, a[2,2] * 30 - a[2,1])
+
+df <<- rbind(df, tmp)
+}
+
+```
+
+```{r, message=F, warning=F}
+for(i in seq(0,1,0.001)){
+    maxprof(i)
+}
+colnames(df) <- c("cutoff", "profit")
+```
+
+```{r}
+library(dplyr)
+df %>% slice_max(profit)
+```
+
+```{r}
+pred <- ifelse(predicted_both > 0.464, 1, 0)
+
+confusionMatrix(factor(pred), factor(test_mod$target), positive = as.character(1))
+```
+
+```{r}
+Probability <- predict(model_full, test, type = "response")
+```
+
+```{r}
+scores <- data.frame(test$id, Probability)
+```
+
+```{r}
+scores <- cbind(scores, PRED_Target = 0)
+```
+
+```{r}
+scores$PRED_Target[scores$Probability > 0.464] <- 1
+```
+
+```{r}
+table(scores$PRED_Target)
+```
+
+
